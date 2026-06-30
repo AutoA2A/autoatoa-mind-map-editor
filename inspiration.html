@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>灵感中心</title>
+    <style>
+        body {
+            font-family: 'Open Sans', 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .nav-bar {
+            background-color: #3498db;
+            color: #fff;
+            padding: 16px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .nav-bar a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 16px;
+            transition: color 0.3s ease;
+        }
+        .nav-bar a:hover {
+            color: #f1c40f;
+        }
+        .header {
+            background-color: #2ecc71;
+            color: #fff;
+            padding: 64px 16px;
+            text-align: center;
+            margin-top: 48px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 16px auto;
+            padding: 16px;
+            background-color: #fff;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        @media (max-width: 768px) {
+            .container {
+                margin: 8px;
+                padding: 8px;
+            }
+        }
+    </style>
+<meta name="description" content="聚合热门模板、用户分享的优秀导图和推荐标签"><meta name="keywords" content="思维导图,编辑器,协作,模板,导出"><meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:type" content="website"><meta property="og:title" content="灵感中心"><meta property="og:description" content="聚合热门模板、用户分享的优秀导图和推荐标签"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="灵感中心"><meta name="twitter:description" content="聚合热门模板、用户分享的优秀导图和推荐标签"><script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"灵感中心","description":"聚合热门模板、用户分享的优秀导图和推荐标签","applicationCategory":"UtilitiesApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"}}</script><style data-a2a="basecss">*,*::before,*::after{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0}img,canvas,svg,video,table{max-width:100%;height:auto}pre,code{white-space:pre-wrap;word-break:break-word}[data-a2a="header"]{width:100%}@media(max-width:640px){body{font-size:15px}}</style></head>
+<body>
+    <div class="nav-bar">
+        <a href="index.html">首页</a>
+        <a href="template.html">模板库</a>
+        <a href="history.html">历史记录</a>
+        <a href="inspiration.html">灵感中心</a>
+        <a href="export.html">导出思维导图</a>
+        <a href="settings.html">设置</a>
+        <a href="help.html">使用帮助</a>
+    </div>
+    <div class="header">
+        <h1>思维导图编辑器</h1>
+    </div>
+    <div class="container">
+        
+<section class="container">
+    <h2>热门模板</h2>
+    <div id="tmplGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;"></div>
+</section>
+
+<section class="container">
+    <h2>用户分享的优秀导图</h2>
+    <div style="margin-bottom:12px;">
+        <input type="file" id="uploadInput" accept=".json" style="display:none;">
+        <button id="uploadBtn" style="background-color:#3498db;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">上传导图</button>
+        <span id="uploadMsg" style="margin-left:8px;color:#555;"></span>
+    </div>
+    <div id="sharedGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;"></div>
+</section>
+
+<section class="container">
+    <h2>推荐标签</h2>
+    <ul id="tagList" style="list-style:none;padding:0;margin:0;display:flex;flex-wrap:gap:8px;"></ul>
+</section>
+
+<script>
+(function(){
+    // 示例思维导图数据结构
+    function makeSample(label, childrenLabels){
+        return {label:label, children:childrenLabels.map(l=>({label:l}))};
+    }
+    const sampleTemplates = [
+        {id:1,title:"学习笔记",data:makeSample("主题",["概念","举例","总结","参考文献"])},
+        {id:2,title:"项目计划",data:makeSample("目标",["里程碑","任务分配","风险","时间表"])},
+        {id:3,title:"创意脑暴",data:makeSample("创意点",["灵感1","灵感2","灵感3","后续行动"])},
+        {id:4,title:"健康管理",data:makeSample("健康",["饮食","运动","睡眠","心理"])}
+    ];
+
+    // 从localStorage读取用户共享导图
+    function getShared(){
+        const raw = localStorage.getItem('sharedMaps');
+        return raw ? JSON.parse(raw) : [];
+    }
+    function setShared(arr){
+        localStorage.setItem('sharedMaps',JSON.stringify(arr));
+    }
+    function addShared(mapObj){
+        const arr = getShared();
+        arr.push(mapObj);
+        setShared(arr);
+        renderShared();
+    }
+    function deleteShared(id){
+        const arr = getShared().filter(m=>m.id!==id);
+        setShared(arr);
+        renderShared();
+    }
+
+    // 生成预览SVG（简单放射布局）
+    function previewSvg(data, w=180, h=180){
+        const cx = w/2, cy = h/2, rInner = 30, rOuter = 80;
+        const children = data.children || [];
+        const angleStep = children.length ? (2*Math.PI)/children.length : 0;
+        let svg = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+        // 连线
+        children.forEach((ch,i)=>{
+            const angle = i*angleStep;
+            const x1 = cx + rInner*Math.cos(angle);
+            const y1 = cy + rInner*Math.sin(angle);
+            const x2 = cx + rOuter*Math.cos(angle);
+            const y2 = cy + rOuter*Math.sin(angle);
+            svg+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#bbb" stroke-width="2"/>`;
+        });
+        // 中心节点
+        svg+=`<circle cx="${cx}" cy="${cy}" r="24" fill="#3498db"/>`;
+        svg+=`<text x="${cx}" y="${cy+8}" font-size="14" fill="#fff" text-anchor="middle">${data.label}</text>`;
+        // 子节点
+        children.forEach((ch,i)=>{
+            const angle = i*angleStep;
+            const x = cx + rOuter*Math.cos(angle);
+            const y = cy + rOuter*Math.sin(angle);
+            svg+=`<circle cx="${x}" cy="${y}" r="18" fill="#2ecc71"/>`;
+            svg+=`<text x="${x}" y="{y+6}" font-size="12" fill="#fff" text-anchor="middle">${ch.label}</text>`;
+        });
+        svg+=`</svg>`;
+        return svg;
+    }
+
+    // 渲染模板卡片
+    function renderTemplates(){
+        const container = document.getElementById('tmplGrid');
+        container.innerHTML='';
+        sampleTemplates.forEach(t=>{
+            const card = document.createElement('div');
+            card.style.background='#f7f7f7';
+            card.style.padding='12px';
+            card.style.borderRadius='4px';
+            card.style.textAlign='center';
+            card.style.cursor='pointer';
+            card.innerHTML = `
+                <div>${previewSvg(t.data,150,150)}</div>
+                <h3 style="margin:8px 0 4px;">${t.title}</h3>
+                <button style="background-color:#3498db;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">使用此模板</button>
+            `;
+            card.querySelector('button').onclick = ()=>{
+                localStorage.setItem('currentMindMap',JSON.stringify(t.data));
+                location.href='index.html';
+            };
+            container.appendChild(card);
+        });
+    }
+
+    // 渲染用户共享卡片
+    function renderShared(){
+        const container = document.getElementById('sharedGrid');
+        container.innerHTML='';
+        const shared = getShared();
+        if(shared.length===0){
+            container.innerHTML = `<p style="text-align:center;color:#999;">暂无用户分享的导图，快来上传第一份吧！</p>`;
+            return;
+        }
+        shared.forEach(m=>{
+            const card = document.createElement('div');
+            card.style.background='#f7f7f7';
+            card.style.padding='12px';
+            card.style.borderRadius='4px';
+            card.style.position='relative';
+            card.style.textAlign='center';
+            card.innerHTML = `
+                <div>${previewSvg(m.data,150,150)}</div>
+                <h3 style="margin:8px 0 4px;">${m.title}</h3>
+                <button style="background-color:#3498db;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;margin-right:6px;">使用此导图</button>
+                <button style="background-color:#e74c3c;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">删除</button>
+            `;
+            const useBtn = card.querySelector('button:nth-of-type(1)');
+            const delBtn = card.querySelector('button:nth-of-type(2)');
+            useBtn.onclick = ()=>{
+                localStorage.setItem('currentMindMap',JSON.stringify(m.data));
+                location.href='index.html';
+            };
+            delBtn.onclick = ()=>{
+                if(confirm('确定要删除此分享吗？')){
+                    deleteShared(m.id);
+                }
+            };
+            container.appendChild(card);
+        });
+    }
+
+    // 渲染标签
+    function renderTags(){
+        const tags = ['#创意','#学习','#工作','#健康','#项目规划','#脑暴'];
+        const ul = document.getElementById('tagList');
+        ul.innerHTML='';
+        tags.forEach(t=>{
+            const li = document.createElement('li');
+            li.style.background='#ecf0f1';
+            li.style.padding='4px 10px';
+            li.style.borderRadius='4px';
+            li.style.fontSize='14px';
+            li.style.cursor='pointer';
+            li.textContent = t;
+            li.onclick = ()=>{ /* 这里可以做过滤，暂时仅提示 */ alert('点击了标签：'+t); };
+            ul.appendChild(li);
+        });
+    }
+
+    // 上传导图
+    document.getElementById('uploadBtn').onclick = ()=>{
+        document.getElementById('uploadInput').value=null;
+        document.getElementById('uploadInput').click();
+    };
+    document.getElementById('uploadInput').onchange = e=>{
+        const file = e.target.files[0];
+        if(!file){ return; }
+        const reader = new FileReader();
+        reader.onload = ev=>{
+            try{
+                const data = JSON.parse(ev.target.result);
+                // 简单校验
+                if(!data || typeof data.label!=='string'){
+                    throw new Error('非法导图格式');
+                }
+                const mapObj = {
+                    id: Date.now(),
+                    title: file.name.replace(/\.[^/.]+$/, ""),
+                    data: data,
+                    timestamp: Date.now()
+                };
+                addShared(mapObj);
+                document.getElementById('uploadMsg').textContent='导图已上传并分享！';
+                document.getElementById('uploadMsg').style.color='#2ecc71';
+            }catch(err){
+                document.getElementById('uploadMsg').textContent='上传失败：'+err.message;
+                document.getElementById('uploadMsg').style.color='#e74c3c';
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    // 初始化
+    renderTemplates();
+    renderShared();
+    renderTags();
+})();
+</script>
+
+    </div>
+<footer data-a2a="footer" style="margin-top:48px;padding:28px 16px;border-top:1px solid rgba(127,127,127,.16);text-align:center;font-family:system-ui,-apple-system,'PingFang SC',sans-serif;line-height:1.9;color:#8a8f99;background:transparent"><a href="https://www.autoa2a.org" target="_blank" rel="noopener" style="display:inline-block;margin-bottom:10px"><img src="https://agent.oagi.com.cn/uploads/202606/29ea3ed5413830b3.png" alt="AutoA2A" style="height:36px;vertical-align:middle;border:0"></a><div style="font-size:13.5px;color:#6b7280;max-width:760px;margin:0 auto 6px">✅️ <b>AutoA2A</b> · 智能体互连 Agent to Agent 平台——让智能体无缝发现、协商、协作与安全交换数据，开启 AI 即服务新时代。</div><div style="font-size:13px">本网站由 <a href="https://www.autoa2a.org" target="_blank" rel="noopener" style="color:#f2603c;text-decoration:none;font-weight:600">www.autoa2a.org</a> 多个 AI 协作生成</div><div style="font-size:12px;color:#aab;margin-top:6px">Copyright © 2025 - 2026 AutoA2A. All Rights Reserved. A2A版权所有</div></footer></body>
+</html>
