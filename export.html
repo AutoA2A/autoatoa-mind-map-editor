@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>导出思维导图</title>
+    <style>
+        body {
+            font-family: 'Open Sans', 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .nav-bar {
+            background-color: #3498db;
+            color: #fff;
+            padding: 16px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .nav-bar a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 16px;
+            transition: color 0.3s ease;
+        }
+        .nav-bar a:hover {
+            color: #f1c40f;
+        }
+        .header {
+            background-color: #2ecc71;
+            color: #fff;
+            padding: 64px 16px;
+            text-align: center;
+            margin-top: 48px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 16px auto;
+            padding: 16px;
+            background-color: #fff;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        @media (max-width: 768px) {
+            .container {
+                margin: 8px;
+                padding: 8px;
+            }
+        }
+    </style>
+<meta name="description" content="导出为PNG、JSON或SVG，支持自定义水印和多尺寸导出"><meta name="keywords" content="思维导图,编辑器,协作,模板,导出"><meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:type" content="website"><meta property="og:title" content="导出思维导图"><meta property="og:description" content="导出为PNG、JSON或SVG，支持自定义水印和多尺寸导出"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="导出思维导图"><meta name="twitter:description" content="导出为PNG、JSON或SVG，支持自定义水印和多尺寸导出"><script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"导出思维导图","description":"导出为PNG、JSON或SVG，支持自定义水印和多尺寸导出","applicationCategory":"UtilitiesApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"}}</script><style data-a2a="basecss">*,*::before,*::after{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0}img,canvas,svg,video,table{max-width:100%;height:auto}pre,code{white-space:pre-wrap;word-break:break-word}[data-a2a="header"]{width:100%}@media(max-width:640px){body{font-size:15px}}</style></head>
+<body>
+    <div class="nav-bar">
+        <a href="index.html">首页</a>
+        <a href="template.html">模板库</a>
+        <a href="history.html">历史记录</a>
+        <a href="inspiration.html">灵感中心</a>
+        <a href="export.html">导出思维导图</a>
+        <a href="settings.html">设置</a>
+        <a href="help.html">使用帮助</a>
+    </div>
+    <div class="header">
+        <h1>思维导图编辑器</h1>
+    </div>
+    <div class="container">
+        
+<divid="exportApp" style="padding:16px;">
+  <div style="margin-bottom:12px;">
+    <label for="mapSelect" style="display:block;margin-bottom:4px;font-weight:500;">选择思维导图</label>
+    <select id="mapSelect" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:0.9rem;background:#fff;"></select>
+  </div>
+
+  <div id="emptyState" style="display:none;text-align:center;padding:32px;color:#6b7280;">
+    暂无思维导图数据，请在 <a href="index.html" style="color:#3498db;text-decoration:none;">编辑器</a> 中创建后再导出，或前往 <a href="template.html" style="color:#3498db;text-decoration:none;">模板库</a> 选择模板。
+  </div>
+
+  <div id="exportPanel" style="display:none;">
+    <div style="margin-bottom:12px;">
+      <label for="formatSelect" style="display:block;margin-bottom:4px;font-weight:500;">导出格式</label>
+      <select id="formatSelect" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:0.9rem;background:#fff;">
+        <option value="png">PNG 图片</option>
+        <option value="svg">SVG 矢量图</option>
+        <option value="json">JSON 数据</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label for="bgColor" style="display:block;margin-bottom:4px;font-weight:500;">背景色</label>
+      <input type="color" id="bgColor" style="height:38px;padding:0;border:none;background:#fff;" value="#ffffff">
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label for="resolution" style="display:block;margin-bottom:4px;font-weight:500;">分辨率倍数（影响 PNG 清晰度）</label>
+      <input type="number" id="resolution" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:0.9rem;background:#fff;" min="1" max="5" value="2">
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label for="watermarkText" style="display:block;margin-bottom:4px;font-weight:500;">水印文字（可留空）</label>
+      <input type="text" id="watermarkText" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:0.9rem;background:#fff;" placeholder="例如：Confidential">
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label for="watermarkOpacity" style="display:block;margin-bottom:4px;font-weight:500;">水印透明度</label>
+      <input type="range" id="watermarkOpacity" style="width:100%;" min="0" max="1" step="0.05" value="0.2">
+      <span id="opacityVal" style="font-size:0.9rem;margin-left:8px;">0.2</span>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label for="watermarkPos" style="display:block;margin-bottom:4px;font-weight:500;">水印位置</label>
+      <select id="watermarkPos" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:0.9rem;background:#fff;">
+        <option value="top-left">左上</option>
+        <option value="top-right">右上</option>
+        <option value="bottom-left">左下</option>
+        <option value="bottom-right">右下</option>
+        <option value="center">中心</option>
+      </select>
+    </div>
+
+    <button id="exportBtn" style="display:inline-block;padding:10px 16px;background:#3498db;color:#fff;border:none;border-radius:4px;font-size:0.95rem;cursor:pointer;text-decoration:none;">
+      导出
+    </button>
+
+    <div id="previewArea" style="margin-top:16px;text-align:center;min-height:200px;background:#f3f4f6;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:0.9rem;">
+      预览将在此显示
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const dbName = 'MindMapDB';
+  const storeName = 'maps';
+  let db = null;
+
+  function openDB(){
+    return new Promise((resolve,reject)=>{
+      const req = indexedDB.open(dbName,1);
+      req.onupgradeneeded = e=>{
+        const db = e.target.result;
+        if(!db.objectStoreNames.contains(storeName)){
+          db.createObjectStore(storeName,{keyPath:'id'});
+        }
+      };
+      req.onsuccess = e=>{ db = e.target.result; resolve(db); };
+      req.onerror = e=>reject(e.target.error);
+    });
+  }
+
+  function getAllMaps(){
+    return new Promise((resolve,reject)=>{
+      const tx = db.transaction(storeName,'readonly');
+      const store = tx.objectStore(storeName);
+      const req = store.getAll();
+      req.onsuccess = e=>resolve(e.target.result);
+      req.onerror = e=>reject(e.target.error);
+    });
+  }
+
+  function getMap(id){
+    return new Promise((resolve,reject)=>{
+      const tx = db.transaction(storeName,'readonly');
+      const store = tx.objectStore(storeName);
+      const req = store.get(id);
+      req.onsuccess = e=>resolve(e.target.result);
+      req.onerror = e=>reject(e.target.error);
+    });
+  }
+
+  function renderMapToSVG(map, {bgColor='#ffffff', watermarkText='', watermarkOpacity=0.2, watermarkPos='center'}){
+    const width = map.width || 800;
+    const height = map.height || 600;
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS,'svg');
+    svg.setAttribute('width',width);
+    svg.setAttribute('height',height);
+    svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
+    svg.setAttribute('xmlns',svgNS);
+
+    const rect = document.createElementNS(svgNS,'rect');
+    rect.setAttribute('width',width);
+    rect.setAttribute('height',height);
+    rect.setAttribute('fill',bgColor);
+    svg.appendChild(rect);
+
+    // edges
+    if(map.edges){
+      map.edges.forEach(e=>{
+        const fromNode = map.nodes.find(n=>n.id===e.from);
+        const toNode   = map.nodes.find(n=>n.id===e.to);
+        if(!fromNode || !toNode) return;
+        const line = document.createElementNS(svgNS,'line');
+        line.setAttribute('x1',fromNode.x);
+        line.setAttribute('y1',fromNode.y);
+        line.setAttribute('x2',toNode.x);
+        line.setAttribute('y2',toNode.y);
+        line.setAttribute('stroke','#999');
+        line.setAttribute('stroke-width',2);
+        svg.appendChild(line);
+      });
+    }
+
+    // nodes
+    if(map.nodes){
+      map.nodes.forEach(n=>{
+        const g = document.createElementNS(svgNS,'g');
+        const rectNode = document.createElementNS(svgNS,'rect');
+        rectNode.setAttribute('x',n.x - (n.width||120)/2);
+        rectNode.setAttribute('y',n.y - (n.height||30)/2);
+        rectNode.setAttribute('width',n.width||120);
+        rectNode.setAttribute('height',n.height||30);
+        rectNode.setAttribute('fill',n.color||'#e3f2fd');
+        rectNode.setAttribute('stroke','#555');
+        rectNode.setAttribute('stroke-width',1);
+        g.appendChild(rectNode);
+
+        const text = document.createElementNS(svgNS,'text');
+        text.setAttribute('x',n.x);
+        text.setAttribute('y',n.y+5);
+        text.setAttribute('text-anchor','middle');
+        text.setAttribute('fill','#111');
+        text.setAttribute('font-family','sans-serif');
+        text.setAttribute('font-size',14);
+        text.textContent = n.label||'';
+        g.appendChild(text);
+        svg.appendChild(g);
+      });
+    }
+
+    // watermark
+    if(watermarkText.trim()!==''){
+      const wm = document.createElementNS(svgNS,'text');
+      wm.setAttribute('fill','#000');
+      wm.setAttribute('opacity',watermarkOpacity);
+      wm.setAttribute('font-family','sans-serif');
+      wm.setAttribute('font-size',24);
+      wm.textContent = watermarkText;
+      // position
+      let x=0,y=0;
+      switch(watermarkPos){
+        case 'top-left':   x=20; y=40; break;
+        case 'top-right':  x=width-20; y=40; wm.setAttribute('text-anchor','end'); break;
+        case 'bottom-left':x=20; y=height-20; wm.setAttribute('text-anchor','start'); break;
+        case 'bottom-right':x=width-20; y=height-20; wm.setAttribute('text-anchor','end'); break;
+        case 'center':     x=width/2; y=height/2; wm.setAttribute('text-anchor','middle'); break;
+      }
+      wm.setAttribute('x',x);
+      wm.setAttribute('y',y);
+      svg.appendChild(wm);
+    }
+    return svg;
+  }
+
+  function svgToBlob(svgElem){
+    const serializer = new XMLSerializer();
+    const svgString = serializer.serializeToString(svgElem);
+    const blob = new Blob([svgString],{type:'image/svg+xml;charset=utf-8'});
+    return blob;
+  }
+
+  function drawMapOnCanvas(map, ctx, scale, {bgColor='#ffffff', watermarkText='', watermarkOpacity=0.2, watermarkPos='center'}){
+    const width = (map.width||800)*scale;
+    const height = (map.height||600)*scale;
+    ctx.clearRect(0,0,width,height);
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0,0,width,height);
+
+    // edges
+    if(map.edges){
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 2*scale;
+      map.edges.forEach(e=>{
+        const from = map.nodes.find(n=>n.id===e.from);
+        const to   = map.nodes.find(n=>n.id===e.to);
+        if(!from||!to) return;
+        ctx.beginPath();
+        ctx.moveTo(from.x*scale, from.y*scale);
+        ctx.lineTo(to.x*scale, to.y*scale);
+        ctx.stroke();
+      });
+    }
+
+    // nodes
+    if(map.nodes){
+      map.nodes.forEach(n=>{
+        ctx.fillStyle = n.color||'#e3f2fd';
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1*scale;
+        const x = (n.x - (n.width||120)/2)*scale;
+        const y = (n.y - (n.height||30)/2)*scale;
+        const w = (n.width||120)*scale;
+        const h = (n.height||30)*scale;
+        ctx.fillRect(x,y,w,h);
+        ctx.strokeRect(x,y,w,h);
+
+        ctx.fillStyle = '#111';
+        ctx.font = `${14*scale}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(n.label||'', n.x*scale, n.y*scale);
+      });
+    }
+
+    // watermark
+    if(watermarkText.trim()!==''){
+      ctx.fillStyle = '#000';
+      ctx.globalAlpha = watermarkOpacity;
+      ctx.font = `${24*scale}px sans-serif`;
+      ctx.textAlign = 'start';
+      const measure = ctx.measureText(watermarkText);
+      let x=0,y=0;
+      switch(watermarkPos){
+        case 'top-left':   x=20*scale; y=40*scale; break;
+        case 'top-right':  x=width-20*scale; y=40*scale; ctx.textAlign='end'; break;
+        case 'bottom-left':x=20*scale; y=height-20*scale; ctx.textAlign='start'; break;
+        case 'bottom-right':x=width-20*scale; y=height-20*scale; ctx.textAlign='end'; break;
+        case 'center':     x=width/2; y=height/2; ctx.textAlign='center'; break;
+      }
+      ctx.fillText(watermarkText, x, y);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function exportPNG(map, scale, opts){
+    const width = (map.width||800)*scale;
+    const height = (map.height||600)*scale;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    drawMapOnCanvas(map, ctx, scale, opts);
+    canvas.toBlob(blob=>{
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${map.title||'mindmap'}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },'image/png');
+  }
+
+  function exportSVG(map, opts){
+    const svg = renderMapToSVG(map, opts);
+    const blob = svgToBlob(svg);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${map.title||'mindmap'}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportJSON(map){
+    const data = JSON.stringify(map, null, 2);
+    const blob = new Blob([data],{type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${map.title||'mindmap'}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // UI logic
+  const mapSelect = document.getElementById('mapSelect');
+  const emptyState = document.getElementById('emptyState');
+  const exportPanel = document.getElementById('exportPanel');
+  const exportBtn = document.getElementById('exportBtn');
+  const previewArea = document.getElementById('previewArea');
+  const formatSelect = document.getElementById('formatSelect');
+  const bgColorInput = document.getElementById('bgColor');
+  const resolutionInput = document.getElementById('resolution');
+  const watermarkTextInput = document.getElementById('watermarkText');
+  const watermarkOpacityInput = document.getElementById('watermarkOpacity');
+  const opacityValSpan = document.getElementById('opacityVal');
+  const watermarkPosSelect = document.getElementById('watermarkPos');
+
+  watermarkOpacityInput.addEventListener('input',()=>{
+    opacityValSpan.textContent = watermarkOpacityInput.value;
+  });
+
+  async function loadMaps(){
+    try{
+      const maps = await getAllMaps();
+      mapSelect.innerHTML = '';
+      if(maps.length===0){
+        emptyState.style.display = 'block';
+        exportPanel.style.display = 'none';
+        return;
+      }
+      emptyState.style.display = 'none';
+      exportPanel.style.display = 'block';
+      maps.forEach(m=>{
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.title||`思维导图 ${m.id}`;
+        mapSelect.appendChild(opt);
+      });
+      mapSelect.dispatchEvent(new Event('change'));
+    }catch(e){
+      console.error(e);
+      alert('加载思维导图失败');
+    }
+  }
+
+  async function loadSelectedMap(){
+    const id = mapSelect.value;
+    if(!id){ previewArea.innerHTML = '请选择一个思维导图'; return; }
+    const map = await getMap(id);
+    if(!map){ previewArea.innerHTML = '未找到该思维导图'; return; }
+    // render preview as SVG
+    const opts = {
+      bgColor: bgColorInput.value,
+      watermarkText: watermarkTextInput.value,
+      watermarkOpacity: parseFloat(watermarkOpacityInput.value),
+      watermarkPos: watermarkPosSelect.value
+    };
+    const svg = renderMapToSVG(map, opts);
+    previewArea.innerHTML = '';
+    previewArea.appendChild(svg.cloneNode(true));
+  }
+
+  mapSelect.addEventListener('change', loadSelectedMap);
+  [bgColorInput, watermarkTextInput, watermarkOpacityInput, watermarkPosSelect].forEach(el=>{
+    el.addEventListener('input', loadSelectedMap);
+  });
+
+  exportBtn.addEventListener('click', async()=>{
+    const id = mapSelect.value;
+    if(!id){ alert('请先选择一个思维导图'); return; }
+    const map = await getMap(id);
+    if(!map){ alert('找不到思维导图数据'); return; }
+    const format = formatSelect.value;
+    const scale = parseInt(resolutionInput.value,10);
+    const opts = {
+      bgColor: bgColorInput.value,
+      watermarkText: watermarkTextInput.value,
+      watermarkOpacity: parseFloat(watermarkOpacityInput.value),
+      watermarkPos: watermarkPosSelect.value
+    };
+    if(format==='png'){
+      exportPNG(map, scale, opts);
+    }else if(format==='svg'){
+      exportSVG(map, opts);
+    }else{
+      exportJSON(map);
+    }
+  });
+
+  // init
+  openDB().then(loadMaps).catch(err=>{ console.error(err); alert('无法打开数据库'); });
+})();
+</script>
+
+    </div>
+<footer data-a2a="footer" style="margin-top:48px;padding:28px 16px;border-top:1px solid rgba(127,127,127,.16);text-align:center;font-family:system-ui,-apple-system,'PingFang SC',sans-serif;line-height:1.9;color:#8a8f99;background:transparent"><a href="https://www.autoa2a.org" target="_blank" rel="noopener" style="display:inline-block;margin-bottom:10px"><img src="https://agent.oagi.com.cn/uploads/202606/29ea3ed5413830b3.png" alt="AutoA2A" style="height:36px;vertical-align:middle;border:0"></a><div style="font-size:13.5px;color:#6b7280;max-width:760px;margin:0 auto 6px">✅️ <b>AutoA2A</b> · 智能体互连 Agent to Agent 平台——让智能体无缝发现、协商、协作与安全交换数据，开启 AI 即服务新时代。</div><div style="font-size:13px">本网站由 <a href="https://www.autoa2a.org" target="_blank" rel="noopener" style="color:#f2603c;text-decoration:none;font-weight:600">www.autoa2a.org</a> 多个 AI 协作生成</div><div style="font-size:12px;color:#aab;margin-top:6px">Copyright © 2025 - 2026 AutoA2A. All Rights Reserved. A2A版权所有</div></footer></body>
+</html>
