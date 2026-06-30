@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>思维导图编辑器</title>
+    <style>
+        body {
+            font-family: 'Open Sans', 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .nav-bar {
+            background-color: #3498db;
+            color: #fff;
+            padding: 16px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .nav-bar a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 16px;
+            transition: color 0.3s ease;
+        }
+        .nav-bar a:hover {
+            color: #f1c40f;
+        }
+        .header {
+            background-color: #2ecc71;
+            color: #fff;
+            padding: 64px 16px;
+            text-align: center;
+            margin-top: 48px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 16px auto;
+            padding: 16px;
+            background-color: #fff;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        @media (max-width: 768px) {
+            .container {
+                margin: 8px;
+                padding: 8px;
+            }
+        }
+    </style>
+<meta name="description" content="主编辑器页面，提供画布、节点拖拽、属性面板、工具栏，支持实时保存至本地IndexedDB和多人协作"><meta name="keywords" content="思维导图,编辑器,协作,模板,导出"><meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:type" content="website"><meta property="og:title" content="思维导图编辑器"><meta property="og:description" content="主编辑器页面，提供画布、节点拖拽、属性面板、工具栏，支持实时保存至本地IndexedDB和多人协作"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="思维导图编辑器"><meta name="twitter:description" content="主编辑器页面，提供画布、节点拖拽、属性面板、工具栏，支持实时保存至本地IndexedDB和多人协作"><script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"思维导图编辑器","description":"主编辑器页面，提供画布、节点拖拽、属性面板、工具栏，支持实时保存至本地IndexedDB和多人协作","applicationCategory":"UtilitiesApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"}}</script><style data-a2a="basecss">*,*::before,*::after{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0}img,canvas,svg,video,table{max-width:100%;height:auto}pre,code{white-space:pre-wrap;word-break:break-word}[data-a2a="header"]{width:100%}@media(max-width:640px){body{font-size:15px}}</style></head>
+<body>
+    <div class="nav-bar">
+        <a href="index.html">首页</a>
+        <a href="template.html">模板库</a>
+        <a href="history.html">历史记录</a>
+        <a href="inspiration.html">灵感中心</a>
+        <a href="export.html">导出思维导图</a>
+        <a href="settings.html">设置</a>
+        <a href="help.html">使用帮助</a>
+    </div>
+    <div class="header">
+        <h1>思维导图编辑器</h1>
+    </div>
+    <div class="container">
+        
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+    <a href="template.html?id=" style="background-color:#3498db;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:text;text-decoration:none;">模板库</a>
+    <a href="history.html?id=" style="background-color:#3498db;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:text;text-decoration:none;">历史记录</a>
+    <button id="addNodeBtn" style="background-color:#3498db;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">+ 节点</button>
+    <button id="delNodeBtn" style="background-color:#3498db;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">- 删除</button>
+    <button id="saveBtn" style="background-color:#3498db;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">保存</button>
+    <button id="loadBtn" style="background-color:#3498db;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">加载</button>
+    <button id="clearBtn" style="background-color:#3498db;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">清空</button>
+</div>
+<div style="display:flex;gap:16px;">
+    <div style="flex:1;min-width:400px;">
+        <svg id="canvas" width="100%" height="500" style="background:#fff;border:1px solid #ddd;display:block;"></svg>
+    </div>
+    <div id="propsPanel" style="width:260px;background:#fff;padding:12px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.08);">
+        <h3 style="margin-top:0;color:#3498db;">属性</h3>
+        <div id="propsContent">请选择节点</div>
+    </div>
+</div>
+<script>
+    // 生成唯一客户端ID用于广播过滤
+    const clientId = Math.random().toString(36).substr(2, 9);
+    const channel = new BroadcastChannel('mindmap-collab');
+
+    let selectedNodeId = null;
+    const nodes = new Map(); // id => {id,x,y,width,height,label,color}
+
+    const canvas = document.getElementById('canvas');
+    const addNodeBtn = document.getElementById('addNodeBtn');
+    const delNodeBtn = document.getElementById('delNodeBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const loadBtn = document.getElementById('loadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const propsContent = document.getElementById('propsContent');
+
+    // 初始化 IndexedDB
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open('mindmapDB', 1);
+            request.onupgradeneeded = () => {
+                const db = request.result;
+                if (!db.objectStoreNames.contains('maps')) {
+                    db.createObjectStore('maps', {autoIncrement:true});
+                }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // 保存到 IndexedDB
+    async function saveToDB() {
+        const db = await openDB();
+        const tx = db.transaction('maps', 'readwrite');
+        const store = tx.objectStore('maps');
+        const data = Array.from(nodes.values()).map(n => ({...n}));
+        store.put({data, timestamp: Date.now()});
+        await tx.complete;
+    }
+
+    // 从 IndexedDB 加载最新记录
+    async function loadFromDB() {
+        const db = await openDB();
+        const tx = db.transaction('maps', 'readonly');
+        const store = tx.objectStore('maps');
+        const request = store.getAll();
+        await new Promise((res, rej) => { request.onsuccess = () => res(request.result); request.onerror = () => rej(request.error); });
+        const all = request.result;
+        if (all.length === 0) return null;
+        const latest = all.reduce((a,b)=>a.timestamp>b.timestamp?a:b);
+        return latest.data;
+    }
+
+    // 渲染节点到 SVG
+    function renderNodes() {
+        canvas.innerHTML = '';
+        nodes.forEach(node => {
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('data-id', node.id);
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', node.x);
+            rect.setAttribute('y', node.y);
+            rect.setAttribute('width', node.width);
+            rect.setAttribute('height', node.height);
+            rect.setAttribute('fill', node.color);
+            rect.setAttribute('stroke', '#3498db');
+            rect.setAttribute('stroke-width', '2');
+            rect.setAttribute('cursor', 'move');
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', node.x + node.width/2);
+            text.setAttribute('y', node.y + node.height/2 + 4);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('fill', '#000');
+            text.setAttribute('font-size', '14');
+            text.textContent = node.label;
+            g.appendChild(rect);
+            g.appendChild(text);
+            canvas.appendChild(g);
+            attachNodeEvents(g, node);
+        });
+    }
+
+    // 为节点添加交互（拖动、选中、编辑）
+    function attachNodeEvents(g, node) {
+        let offsetX = 0, offsetY = 0;
+        let dragging = false;
+
+        g.addEventListener('mousedown', e => {
+            e.stopPropagation();
+            const rect = canvas.getBoundingClientRect();
+            offsetX = e.clientX - rect.left - node.x;
+            offsetY = e.clientY - rect.top - node.y;
+            dragging = true;
+            selectNode(node.id);
+        });
+
+        g.addEventListener('mousemove', e => {
+            if (!dragging) return;
+            const rect = canvas.getBoundingClientRect();
+            node.x = e.clientX - rect.left - offsetX;
+            node.y = e.clientY - rect.top - offsetY;
+            if (node.x < 0) node.x = 0;
+            if (node.y < 0) node.y = 0;
+            const maxW = canvas.width.baseVal.value - node.width;
+            const maxH = canvas.height.baseVal.value - node.height;
+            if (node.x > maxW) node.x = maxW;
+            if (node.y > maxH) node.y = maxH;
+            renderNodes();
+            broadcastChange();
+        });
+
+        g.addEventListener('mouseup', () => { dragging = false; });
+        g.addEventListener('mouseleave', () => { dragging = false; });
+
+        // 双击编辑标签
+        g.addEventListener('dblclick', e => {
+            e.stopPropagation();
+            const newLabel = prompt('编辑节点标签:', node.label);
+            if (newLabel !== null && newLabel.trim() !== '') {
+                node.label = newLabel.trim();
+                renderNodes();
+                broadcastChange();
+            }
+        });
+    }
+
+    function selectNode(id) {
+        selectedNodeId = id;
+        const node = nodes.get(id);
+        if (node) {
+            propsContent.innerHTML = `
+                <div>ID: ${node.id}</div>
+                <div>标签: ${node.label}</div>
+                <div>颜色: <input type="color" value="${node.color}" onchange="changeNodeColor(this.value)"></div>
+            `;
+        } else {
+            propsContent.textContent = '请选择节点';
+        }
+    }
+
+    window.changeNodeColor = function(color) {
+        if (selectedNodeId && nodes.has(selectedNodeId)) {
+            const node = nodes.get(selectedNodeId);
+            node.color = color;
+            renderNodes();
+            broadcastChange();
+        }
+    };
+
+    // 添加节点
+    addNodeBtn.onclick = () => {
+        const label = prompt('请输入节点标签:', '节点');
+        if (label === null) return;
+        const id = Date.now() + '-' + Math.random().toString(36).substr(2,5);
+        const node = {
+            id,
+            x: 100,
+            y: 100,
+            width: 120,
+            height: 40,
+            label: label.trim(),
+            color: '#f1c40f'
+        };
+        nodes.set(id, node);
+        renderNodes();
+        selectNode(id);
+        broadcastChange();
+    };
+
+    // 删除节点
+    delNodeBtn.onclick = () => {
+        if (selectedNodeId && nodes.has(selectedNodeId)) {
+            nodes.delete(selectedNodeId);
+            selectedNodeId = null;
+            propsContent.textContent = '请选择节点';
+            renderNodes();
+            broadcastChange();
+        }
+    };
+
+    // 清空画布
+    clearBtn.onclick = () => {
+        if (confirm('确定要清空所有节点吗？')) {
+            nodes.clear();
+            selectedNodeId = null;
+            propsContent.textContent = '请选择节点';
+            renderNodes();
+            broadcastChange();
+        }
+    };
+
+    // 保存
+    saveBtn.onclick = async () => {
+        await saveToDB();
+        alert('已保存到本地 IndexedDB');
+    };
+
+    // 加载
+    loadBtn.onclick = async () => {
+        const data = await loadFromDB();
+        if (!data) {
+            alert('暂无保存的思维导图');
+            return;
+        }
+        nodes.clear();
+        data.forEach(n => nodes.set(n.id, n));
+        renderNodes();
+        selectedNodeId = null;
+        propsContent.textContent = '请选择节点';
+        alert('已加载最新的思维导图');
+    };
+
+    // 广播变更
+    function broadcastChange() {
+        const state = Array.from(nodes.values()).map(n => ({...n}));
+        channel.postMessage({type: 'state', clientId, state});
+    }
+
+    // 接收广播
+    channel.onmessage = e => {
+        const msg = e.data;
+        if (msg && msg.type === 'state' && msg.clientId !== clientId) {
+            nodes.clear();
+            msg.state.forEach(n => nodes.set(n.id, n));
+            renderNodes();
+            selectedNodeId = null;
+            propsContent.textContent = '请选择节点';
+        }
+    };
+
+    // 初始化空画布
+    renderNodes();
+</script>
+
+    </div>
+<footer data-a2a="footer" style="margin-top:48px;padding:28px 16px;border-top:1px solid rgba(127,127,127,.16);text-align:center;font-family:system-ui,-apple-system,'PingFang SC',sans-serif;line-height:1.9;color:#8a8f99;background:transparent"><a href="https://www.autoa2a.org" target="_blank" rel="noopener" style="display:inline-block;margin-bottom:10px"><img src="https://agent.oagi.com.cn/uploads/202606/29ea3ed5413830b3.png" alt="AutoA2A" style="height:36px;vertical-align:middle;border:0"></a><div style="font-size:13.5px;color:#6b7280;max-width:760px;margin:0 auto 6px">✅️ <b>AutoA2A</b> · 智能体互连 Agent to Agent 平台——让智能体无缝发现、协商、协作与安全交换数据，开启 AI 即服务新时代。</div><div style="font-size:13px">本网站由 <a href="https://www.autoa2a.org" target="_blank" rel="noopener" style="color:#f2603c;text-decoration:none;font-weight:600">www.autoa2a.org</a> 多个 AI 协作生成</div><div style="font-size:12px;color:#aab;margin-top:6px">Copyright © 2025 - 2026 AutoA2A. All Rights Reserved. A2A版权所有</div></footer></body>
+</html>
